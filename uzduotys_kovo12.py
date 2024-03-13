@@ -28,90 +28,93 @@ numb_letter_dict = {
 }
 
 
-def connect_to_mongodb(host: str, port: int, db_name: str) -> Database:
-    client = MongoClient(host, port)
-    database = client[db_name]
-    return database
+class NumbersLetters:
 
+    def __init__(
+        self,
+        mongodb_host: str,
+        mongodb_port: str,
+        db_name: str,
+        collection_name: Collection,
+    ) -> None:
+        self.mongodb_host = mongodb_host
+        self.mongodb_port = mongodb_port
+        self.db_name = db_name
+        self.collection_name = collection_name
 
-# def insert_document(collection: Collection, document: Dict) -> str:
-#     result = collection.insert_one(document)
-#     print(f"Printed result: {result}")
-#     return str(result.inserted_id)
+    def connect_to_mongodb(self) -> Database:
+        client = MongoClient(self.mongodb_host, self.mongodb_port)
+        database = client[self.db_name]
+        return database
 
+    def insert_document(self, collection: Collection, document: Dict) -> str:
+        result = collection.insert_one(document)
+        print(f"Printed result: {result}")
 
-def get_database_collection(database: Database, collection_name: str) -> Collection:
-    collection = database[collection_name]
-    return collection
+    @staticmethod
+    def get_database_collection(database: Database, collection_name: str) -> Collection:
+        collection = database[collection_name]
+        return collection
 
+    @staticmethod
+    def create_document(numb_letter_dict) -> Dict:
+        letter_string = ""
+        digit_letter_dict = {}
+        number = randint(1, 1000000)
+        number_list = [digit for digit in str(number)]
+        for element in number_list:
+            letter = numb_letter_dict[element]
+            letter_string += letter
+        digit_letter_dict[number] = letter_string
+        letter_string = ""
 
-def create_document() -> Dict:
-    letter_string = ""
-    digit_letter_dict = {}
-    number = randint(1, 1000000)
-    number_list = [digit for digit in str(number)]
-    for element in number_list:
-        letter = numb_letter_dict[element]
-        letter_string += letter
-    digit_letter_dict[number] = letter_string
-    letter_string = ""
+        return {
+            "number": number,
+            "letters": digit_letter_dict[number],
+        }
 
-    return {
-        "number": number,
-        "letters": digit_letter_dict[number],
-    }
+    def insert_several_documents(self, document_amount: int) -> None:
+        for _ in range(document_amount):
+            document = self.create_document(numb_letter_dict)
+            inserted_id = self.insert_document(collection, document)
+            print(f"Inserted document with ID: {inserted_id}")
 
+    def get_documents_with_specific_number(
+        self, number: int, collection: Collection
+    ) -> Dict:
+        query = {
+            "number": {"$eq": number},
+        }
+        response = collection.find(query, {"_id": 0})
+        for document in response:
+            print(document)
 
-if __name__ == "__main__":
-    mongodb_host = "localhost"
-    mongodb_port = 27017
-    database_name = "numbers"
-    collection_name = "letters"
+    def get_documents_with_triple_four_digits(self, collection: Collection) -> Dict:
+        query = {
+            "number": {"$gt": 99, "$lt": 10000},
+        }
+        response = collection.find(query, {"_id": 0})
+        for document in response:
+            print(document)
 
-    db = connect_to_mongodb(mongodb_host, mongodb_port, database_name)
-    collection = db[collection_name]
+    def dominant_letter_in_document(self, collection: Collection) -> Dict:
+        query = {
+            "number": {"$gt": 9999, "$lt": 1000000},
+        }
+        response = collection.find(query, {"_id": 0})
+        dominant_letters = {}
+        for document in response:
+            for letter in document["letters"]:
+                dominant_letters[letter] = dominant_letters.get(letter, 0) + 1
 
-    # itteration = 1000
-    # for _ in range(itteration):
-    #     document = create_document()
-    #     inserted_id = insert_document(collection, document)
-    #     print(f"Inserted document with ID: {inserted_id}")
+        dominant_letter = max(dominant_letters, key=dominant_letters.get)
+        print(f"Dominant letter in documents is {dominant_letter}")
 
-    collection = get_database_collection(db, collection_name)
-
-    # query = {
-    #     "number": {"$eq": 1000},
-    # }
-
-    # query = {
-    #     "number": {"$gt": 99, "$lt": 10000},
-    # }
-
-    # query = {
-    #     "number": {"$gt": 9999, "$lt": 1000000},
-    # }
-
-    # response = collection.find(query, {"_id": 0})
-
-    # for document in response:
-    #     print(document)
-
-    # dominant letter within  five and 6 digits area range.
-    # dominant_letter = {}
-
-    # for document in response:
-    #     for letter in document["letters"]:
-    #         dominant_letter[letter] = dominant_letter.get(letter, 0) + 1
-
-    # print(dominant_letter)
-
-    query = {
-        "number": {"$gt": 0},
-    }
-
-    response = collection.find(query, {"_id": 0})
-
-    def get_lowest_and_highest_numbers_from_db():
+    def low_high_and_represented_letters(self, collection: Collection) -> Dict:
+        query = {
+            "number": {"$gt": 0},
+        }
+        response = collection.find(query, {"_id": 0})
         lowest_number = 1000000
         highest_number = 0
         for document in response:
@@ -120,8 +123,41 @@ if __name__ == "__main__":
             if document["number"] > highest_number:
                 highest_number = document["number"]
 
-        return (
+        print(
             f"Lowest number is {lowest_number} and highest number is {highest_number}"
         )
 
-    print(get_lowest_and_highest_numbers_from_db())
+
+if __name__ == "__main__":
+    number_letters = NumbersLetters(
+        mongodb_host="localhost",
+        mongodb_port=27017,
+        db_name="numbers2",
+        collection_name="letters2",
+    )
+
+    db = number_letters.connect_to_mongodb()
+    collection = db[number_letters.collection_name]
+
+    # number_letters.insert_several_documents(1000)
+
+    collection = number_letters.get_database_collection(
+        db, number_letters.collection_name
+    )
+
+    # - All documents where number is 100,1000,10000
+    # number_letters.get_documents_with_specific_number(100, collection)
+    # number_letters.get_documents_with_specific_number(1000, collection)
+    # number_letters.get_documents_with_specific_number(1000, collection)
+
+    # - All documents where numbers are at least triple or four digits
+    # number_letters.get_documents_with_triple_four_digits(collection)
+
+    # - What is the dominant letter within  five and 6 digits area range.
+    # number_letters.dominant_letter_in_document(collection)
+
+    # - Tell me the sum on numbers where majority letters are : (letter 1, letter 2, letter 3)
+    # xxx
+
+    # - Show me the lowest and highest number and their representations
+    # number_letters.low_high_and_represented_letters(collection)
